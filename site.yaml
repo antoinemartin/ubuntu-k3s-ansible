@@ -3,7 +3,6 @@
   gather_facts: yes
 
   tasks:
-
     - name: Install aptitude
       apt:
         name: aptitude
@@ -67,16 +66,16 @@
 
     - name: "downloading {{ k3d_url }} to {{ k3d_exe }}"
       get_url:
-        url: '{{ k3d_url }}'
-        dest: '{{ k3d_exe }}'
-        checksum: '{{ k3d_checksum }}'
+        url: "{{ k3d_url }}"
+        dest: "{{ k3d_exe }}"
+        checksum: "{{ k3d_checksum }}"
         mode: 0755
 
     - name: "downloading {{ kubectl_url }} to {{ kubectl_exe }}"
       get_url:
-        url: '{{ kubectl_url }}'
-        dest: '{{ kubectl_exe }}'
-        checksum: '{{ kubectl_checksum }}'
+        url: "{{ kubectl_url }}"
+        dest: "{{ kubectl_exe }}"
+        checksum: "{{ kubectl_checksum }}"
         mode: 0755
 
     - name: "Check if cluster already exists"
@@ -95,9 +94,10 @@
             dest: "{{ registries_file.path }}"
             content: |
               mirrors:
-                "{{ registry_host }}:{{ registry_port }}":
+                "registry.{{ registry_host }}:{{ registry_port }}":
                   endpoint:
-                    - http://{{ registry_host }}:{{ registry_port }}
+                    - http://registry.{{ registry_host }}:{{ registry_port }}
         - command: "{{ k3d_exe }} cluster create {{ cluster_name }} --registry-config {{ registries_file.path }} {{ k3d_additional_arguments }}"
         # Get the default kube config in /root/.kube/config
-        - command:  "{{ k3d_exe }} kubeconfig merge {{ cluster_name }} --kubeconfig-merge-default"
+        - command: "{{ k3d_exe }} kubeconfig merge {{ cluster_name }} --kubeconfig-merge-default"
+        - command: "docker network connect k3d-{{ cluster_name }} registry.{{ registry_host }}"
