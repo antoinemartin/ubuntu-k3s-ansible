@@ -98,6 +98,6 @@
                 "{{ registry_host }}:{{ registry_port }}":
                   endpoint:
                     - http://{{ registry_host }}:{{ registry_port }}
-        - command: "{{ k3d_exe }} cluster create {{ cluster_name }} --registry-config {{ registries_file.path }}"
+        - command: "{{ k3d_exe }} cluster create {{ cluster_name }} --registry-config {{ registries_file.path }} {{ k3d_additional_arguments }}"
         # Get the default kube config in /root/.kube/config
         - command:  "{{ k3d_exe }} kubeconfig merge {{ cluster_name }} --kubeconfig-merge-default"

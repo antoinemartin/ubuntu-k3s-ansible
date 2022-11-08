@@ -15,3 +15,4 @@ registry_port: 5000
 registry_host: localhost
 
 cluster_name: stuart
+k3d_additional_arguments: "--volume /var/tmp/mysqld:/var/tmp/mysqld@server:0"
