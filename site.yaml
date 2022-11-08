@@ -1,0 +1,103 @@
+- hosts: k3s_master
+  become: yes
+  gather_facts: yes
+
+  tasks:
+
+    - name: Install aptitude
+      apt:
+        name: aptitude
+        state: latest
+        update_cache: true
+
+    - name: Install required system packages
+      apt:
+        pkg:
+          - apt-transport-https
+          - ca-certificates
+          - curl
+          - software-properties-common
+          - python3-pip
+          - virtualenv
+          - python3-setuptools
+        state: latest
+        update_cache: true
+
+    - name: Add Docker GPG apt Key
+      apt_key:
+        url: https://download.docker.com/linux/ubuntu/gpg
+        state: present
+
+    - name: Add Docker Repository
+      apt_repository:
+        repo: deb https://download.docker.com/linux/ubuntu focal stable
+        state: present
+
+    - name: Update apt and install docker-ce
+      apt:
+        name: docker-ce
+        state: latest
+        update_cache: true
+
+    - name: Install Docker Module for Python
+      pip:
+        name: docker
+
+    - name: Add the ubuntu user to the docker group
+      user:
+        name: "{{ ansible_env.SUDO_USER or ansible_user_id }}"
+        groups: docker
+        append: yes
+
+    # From https://k3d.io/v5.4.6/usage/registries/#using-your-own-not-k3d-managed-local-registry
+    - name: Create registry docker volume
+      docker_volume:
+        name: local_registry
+
+    - name: Create docker container
+      docker_container:
+        name: registry.{{ registry_host }}
+        image: registry:2
+        state: started
+        volumes:
+          - "local_registry:/var/lib/registry"
+        ports:
+          - "{{ registry_port }}:5000"
+        restart_policy: always
+
+    - name: "downloading {{ k3d_url }} to {{ k3d_exe }}"
+      get_url:
+        url: '{{ k3d_url }}'
+        dest: '{{ k3d_exe }}'
+        checksum: '{{ k3d_checksum }}'
+        mode: 0755
+
+    - name: "downloading {{ kubectl_url }} to {{ kubectl_exe }}"
+      get_url:
+        url: '{{ kubectl_url }}'
+        dest: '{{ kubectl_exe }}'
+        checksum: '{{ kubectl_checksum }}'
+        mode: 0755
+
+    - name: "Check if cluster already exists"
+      command: "{{ k3d_exe }} cluster list {{ cluster_name }}"
+      register: cluster_exists
+      ignore_errors: True
+
+    - name: Create cluster
+      when: "(cluster_exists.rc != 0)"
+      block:
+        - tempfile:
+            state: file
+            suffix: ".yaml"
+          register: registries_file
+        - copy:
+            dest: "{{ registries_file.path }}"
+            content: |
+              mirrors:
+                "{{ registry_host }}:{{ registry_port }}":
+                  endpoint:
+                    - http://{{ registry_host }}:{{ registry_port }}
+        - command: "{{ k3d_exe }} cluster create {{ cluster_name }} --registry-config {{ registries_file.path }}"
+        # Get the default kube config in /root/.kube/config
+        - command:  "{{ k3d_exe }} kubeconfig merge {{ cluster_name }} --kubeconfig-merge-default"

@@ -1,0 +1,5 @@
+---
+# This is useful when migrating to higher ansible versions
+collections:
+  - name: community.general
+  - name: community.docker
